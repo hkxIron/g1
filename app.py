@@ -1,3 +1,5 @@
+from typing import *
+
 import streamlit as st
 import groq
 import os
@@ -6,7 +8,7 @@ import time
 
 client = groq.Groq()
 
-def make_api_call(messages, max_tokens, is_final_answer=False):
+def make_api_call(messages:List[Dict[str, Any]], max_tokens:int, is_final_answer=False):
     for attempt in range(3):
         try:
             response = client.chat.completions.create(
@@ -25,15 +27,26 @@ def make_api_call(messages, max_tokens, is_final_answer=False):
                     return {"title": "Error", "content": f"Failed to generate step after 3 attempts. Error: {str(e)}", "next_action": "final_answer"}
             time.sleep(1)  # Wait for 1 second before retrying
 
-def generate_response(prompt):
+def generate_response(prompt:str):
     messages = [
-        {"role": "system", "content": """You are an expert AI assistant that explains your reasoning step by step. For each step, provide a title that describes what you're doing in that step, along with the content. Decide if you need another step or if you're ready to give the final answer. Respond in JSON format with 'title', 'content', and 'next_action' (either 'continue' or 'final_answer') keys. USE AS MANY REASONING STEPS AS POSSIBLE. AT LEAST 3. BE AWARE OF YOUR LIMITATIONS AS AN LLM AND WHAT YOU CAN AND CANNOT DO. IN YOUR REASONING, INCLUDE EXPLORATION OF ALTERNATIVE ANSWERS. CONSIDER YOU MAY BE WRONG, AND IF YOU ARE WRONG IN YOUR REASONING, WHERE IT WOULD BE. FULLY TEST ALL OTHER POSSIBILITIES. YOU CAN BE WRONG. WHEN YOU SAY YOU ARE RE-EXAMINING, ACTUALLY RE-EXAMINE, AND USE ANOTHER APPROACH TO DO SO. DO NOT JUST SAY YOU ARE RE-EXAMINING. USE AT LEAST 3 METHODS TO DERIVE THE ANSWER. USE BEST PRACTICES.
+        {"role": "system", "content": """You are an expert AI assistant that explains your reasoning step by step. 
+        For each step, provide a title that describes what you're doing in that step, along with the content. 
+        Decide if you need another step or if you're ready to give the final answer. 
+        Respond in JSON format with 'title', 'content', and 'next_action' (either 'continue' or 'final_answer') keys. 
+        USE AS MANY REASONING STEPS AS POSSIBLE. AT LEAST 3. 
+        BE AWARE OF YOUR LIMITATIONS AS AN LLM AND WHAT YOU CAN AND CANNOT DO. 
+        IN YOUR REASONING, INCLUDE EXPLORATION OF ALTERNATIVE ANSWERS. 
+        CONSIDER YOU MAY BE WRONG, AND IF YOU ARE WRONG IN YOUR REASONING, WHERE IT WOULD BE. 
+        FULLY TEST ALL OTHER POSSIBILITIES. YOU CAN BE WRONG. WHEN YOU SAY YOU ARE RE-EXAMINING, 
+        ACTUALLY RE-EXAMINE, AND USE ANOTHER APPROACH TO DO SO. DO NOT JUST SAY YOU ARE RE-EXAMINING. 
+        USE AT LEAST 3 METHODS TO DERIVE THE ANSWER. USE BEST PRACTICES.
 
 Example of a valid JSON response:
 ```json
 {
     "title": "Identifying Key Information",
-    "content": "To begin solving this problem, we need to carefully examine the given information and identify the crucial elements that will guide our solution process. This involves...",
+    "content": "To begin solving this problem, we need to carefully examine the given information and 
+    identify the crucial elements that will guide our solution process. This involves...",
     "next_action": "continue"
 }```
 """},
@@ -51,7 +64,8 @@ Example of a valid JSON response:
         end_time = time.time()
         thinking_time = end_time - start_time
         total_thinking_time += thinking_time
-        
+
+        # 将上一轮LLM返回的数据也加进prompt
         steps.append((f"Step {step_count}: {step_data['title']}", step_data['content'], thinking_time))
         
         messages.append({"role": "assistant", "content": json.dumps(step_data)})
@@ -114,4 +128,5 @@ def main():
                 time_container.markdown(f"**Total thinking time: {total_thinking_time:.2f} seconds**")
 
 if __name__ == "__main__":
+    # 通过引导prompt多步思考以及用不同的方法验证，可以使大模型产生类似于o1的效果
     main()
